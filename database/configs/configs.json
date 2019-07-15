@@ -1,0 +1,13 @@
+{
+	"database": {
+		"uri": "mongodb://username:password@yourhost:port/databasename?authSource=yourAuthDB",
+		"archivename": "yourarchivename",
+		"destpath": "D:\\yourarchivedestinationdirectory",
+		"retentionday": 7
+	},
+	"s3": {
+		"region": "us-xxxx-2",
+		"bucket": "your-bucket-name-us-xxxx-2",
+		"timeout": 0
+	}
+}
