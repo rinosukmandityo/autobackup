@@ -4,7 +4,7 @@ To Backup MongoDB Database and Files into AWS S3 Bucket
 How to use
 ---
 #### BACKUP DATABASE
-It will dump your MongoDB database with archive and copy it into your local folder and S3 Bucket
+It will dump your MongoDB database with archive and copy it into your local folder and S3 Bucket  
 Here is step by step:
 1. Change config file inside configs/configs.json with appropriate information about your database and S3 Buecket
 2. If you want to upload into your S3 Bucket folder just add `/yourfoldername/` into `bucket` key
@@ -13,7 +13,7 @@ Here is step by step:
 4. To run it in any scheduler just build it and add parameter `-config=yourconfigfilelocation`.
 
 #### BACKUP FILES
-It will copy your files into S3 Bucket
+It will copy your files into S3 Bucket  
 Here is step by step:
 1. Change config file inside configs/configs.json with appropriate information about your files directory location and S3 Bucket
 2. It will only copy files in the same day when this apps run
