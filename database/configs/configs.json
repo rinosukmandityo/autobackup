@@ -2,8 +2,9 @@
 	"database": {
 		"uri": "mongodb://username:password@yourhost:port/databasename?authSource=yourAuthDB",
 		"archivename": "yourarchivename",
+		"archivesuffix_dateformat": "20060102",
 		"destpath": "D:\\yourarchivedestinationdirectory",
-		"retentionday": 7
+		"retentionday": 7,
 	},
 	"s3": {
 		"region": "us-xxxx-2",
