@@ -3,6 +3,7 @@ package helper
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -21,9 +22,9 @@ func ToMapString(data interface{}) (res map[string]string) {
 
 func BackupDBToS3(dbconfig, s3config map[string]interface{}) {
 	archiveName, fPath := BackupDB(dbconfig)
-	// if dbconfig["retentionday"].(float64) > 0 {
-	// 	GetListObjects(s3config)
-	// }
+	if dbconfig["retentionday"].(float64) > 0 {
+		GetListObjects(s3config)
+	}
 	PutObjectWithContext(s3config, archiveName, fPath)
 }
 
@@ -33,5 +34,14 @@ func BackupDB(dbconfig map[string]interface{}) (archiveName, fPath string) {
 	fPath = filepath.Join(dbconfig["destpath"].(string), archiveName)
 	archiveCmd := "--archive=" + fPath
 	ExecCommand([]string{"/C", "mongodump", "--uri", dbconfig["uri"].(string), archiveCmd})
+	return
+}
+
+func GetBucketPathFromConfig(s3config map[string]interface{}) (bucket string) {
+	bucket = strings.Trim(s3config["bucket"].(string), "/")
+	folder := strings.Trim(s3config["folder"].(string), "/")
+	if folder != "" {
+		bucket = fmt.Sprintf("%s/%s/", bucket, folder)
+	}
 	return
 }

@@ -2,7 +2,6 @@ package helper
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -160,11 +159,7 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 	// Uploads the object to S3. The Context will interrupt the request if the
 	// timeout expires.
 
-	bucket := strings.Trim(s3config["bucket"].(string), "/")
-	folder := strings.Trim(s3config["folder"].(string), "/")
-	if folder != "" {
-		bucket = fmt.Sprintf("%s/%s/", bucket, folder)
-	}
+	bucket := GetBucketPathFromConfig(s3config)
 	_, e = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -190,11 +185,7 @@ func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
 	})
 	uploader := s3manager.NewUploader(sess)
 
-	bucket := strings.Trim(s3config["bucket"].(string), "/")
-	folder := strings.Trim(s3config["folder"].(string), "/")
-	if folder != "" {
-		bucket = fmt.Sprintf("%s/%s/", bucket, folder)
-	}
+	bucket := GetBucketPathFromConfig(s3config)
 	iter := NewSyncFolderIter(fileconfig["dirpath"].(string), bucket)
 	if err := uploader.UploadWithIterator(aws.BackgroundContext(), iter); err != nil {
 		log.Printf("unexpected error has occurred: %v", err)
@@ -282,24 +273,23 @@ func (iter *SyncFolderIterator) UploadObject() s3manager.BatchUploadObject {
 	}
 }
 
-// NewSyncFolderIterator will walk the path, and store the key and full path
+// NewSyncWalkPath will walk the path, and store the key and full path
 // of the object to be uploaded. This will return a new SyncFolderIterator
 // with the data provided from walking the path.
-// func NewSyncFolderIterator(path, bucket string) *SyncFolderIterator {
-// 	metadata := []fileInfo{}
-// 	timeNow := time.Now()
-// 	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-// 		if !info.IsDir() {
-// 			key := strings.TrimPrefix(p, path)
-// 			metadata = append(metadata, fileInfo{key, p})
-// 		}
+func NewSyncWalkPath(path, bucket string) *SyncFolderIterator {
+	metadata := []fileInfo{}
+	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			key := strings.TrimPrefix(p, path)
+			metadata = append(metadata, fileInfo{key, p})
+		}
 
-// 		return nil
-// 	})
+		return nil
+	})
 
-// 	return &SyncFolderIterator{
-// 		bucket,
-// 		metadata,
-// 		nil,
-// 	}
-// }
+	return &SyncFolderIterator{
+		bucket,
+		metadata,
+		nil,
+	}
+}
