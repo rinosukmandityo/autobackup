@@ -2,11 +2,13 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -36,34 +38,6 @@ const (
 	UsWest1RegionID      = "us-west-1"      // US West (N. California).
 	UsWest2RegionID      = "us-west-2"      // US West (Oregon).
 )
-
-func GetListObjects() {
-	svc := s3.New(session.New())
-	input := &s3.ListObjectsV2Input{
-		Bucket:  aws.String("examplebucket"),
-		MaxKeys: aws.Int64(2),
-	}
-
-	result, e := svc.ListObjectsV2(input)
-	if e != nil {
-		if aerr, ok := e.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				log.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
-			default:
-				log.Println(aerr.Error())
-			}
-		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
-			log.Println(e.Error())
-		}
-		return
-	}
-	for _, obj := range result.Contents {
-		log.Println(obj.LastModified)
-	}
-}
 
 func PutObjectAcl(regionPtr, bucketPtr, keyPtr, ownerNamePtr, ownerIDPtr, granteeTypePtr, uriPtr, emailPtr, userPtr, displayNamePtr *string) {
 	// Based off the type, fields must be excluded.
@@ -119,6 +93,38 @@ func PutObjectAcl(regionPtr, bucketPtr, keyPtr, ownerNamePtr, ownerIDPtr, grante
 	}
 }
 
+func GetListObjects(s3config map[string]interface{}) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(s3config["region"].(string)),
+	}))
+	svc := s3.New(sess)
+
+	input := &s3.ListObjectsV2Input{
+		Bucket:  aws.String(s3config["bucket"].(string)),
+		MaxKeys: aws.Int64(2),
+	}
+
+	result, e := svc.ListObjectsV2(input)
+	if e != nil {
+		if aerr, ok := e.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				log.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
+			default:
+				log.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			log.Println(e.Error())
+		}
+		return
+	}
+	for _, obj := range result.Contents {
+		log.Println(*obj.Key, obj.LastModified)
+	}
+}
+
 func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 	// All clients require a Session. The Session provides the client with
 	// shared configuration such as region, endpoint, and credentials. A
@@ -153,7 +159,12 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 
 	// Uploads the object to S3. The Context will interrupt the request if the
 	// timeout expires.
-	bucket := s3config["bucket"].(string)
+
+	bucket := strings.Trim(s3config["bucket"].(string), "/")
+	folder := strings.Trim(s3config["folder"].(string), "/")
+	if folder != "" {
+		bucket = fmt.Sprintf("%s/%s/", bucket, folder)
+	}
 	_, e = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -173,13 +184,18 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 	log.Printf("successfully uploaded file to %s-%s\n", bucket, key)
 }
 
-func BackupFileToS3(fileconfig, s3config map[string]interface{}) {
+func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
 	sess := session.New(&aws.Config{
 		Region: aws.String(s3config["region"].(string)),
 	})
 	uploader := s3manager.NewUploader(sess)
 
-	iter := NewSyncFolderIter(fileconfig["dirpath"].(string), s3config["bucket"].(string))
+	bucket := strings.Trim(s3config["bucket"].(string), "/")
+	folder := strings.Trim(s3config["folder"].(string), "/")
+	if folder != "" {
+		bucket = fmt.Sprintf("%s/%s/", bucket, folder)
+	}
+	iter := NewSyncFolderIter(fileconfig["dirpath"].(string), bucket)
 	if err := uploader.UploadWithIterator(aws.BackgroundContext(), iter); err != nil {
 		log.Printf("unexpected error has occurred: %v", err)
 	}

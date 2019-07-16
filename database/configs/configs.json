@@ -9,6 +9,7 @@
 	"s3": {
 		"region": "us-xxxx-2",
 		"bucket": "your-bucket-name-us-xxxx-2",
+		"folder": "folder name inside bucket if any with format subfolder or subfolder/subsubfolder, etc or leave it as empty string",
 		"timeout": 0
 	}
 }

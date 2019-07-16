@@ -13,5 +13,5 @@ func main() {
 	flag.Parse()
 
 	configs := helper.ReadJsonFile(configLoc)
-	helper.BackupFileToS3(configs["file"].(map[string]interface{}), configs["s3"].(map[string]interface{}))
+	helper.PutObjectsToS3(configs["file"].(map[string]interface{}), configs["s3"].(map[string]interface{}))
 }
