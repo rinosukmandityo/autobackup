@@ -22,7 +22,7 @@ func BackupDBToS3(dbconfig, s3config map[string]interface{}) {
 
 func BackupDB(dbconfig map[string]interface{}) (archiveName, fPath string) {
 	tNow := time.Now()
-	archiveName = fmt.Sprintf("%s_%s.archive", dbconfig["archivename"].(string), tNow.Format("20060102"))
+	archiveName = fmt.Sprintf("%s_%s.archive", dbconfig["archivename"].(string), tNow.Format(dbconfig["archivesuffix_dateformat"].(string)))
 	fPath = filepath.Join(dbconfig["destpath"].(string), archiveName)
 	archiveCmd := "--archive=" + fPath
 	ExecCommand([]string{"/C", "mongodump", "--uri", dbconfig["uri"].(string), archiveCmd})

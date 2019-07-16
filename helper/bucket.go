@@ -23,28 +23,27 @@ func PutBucketPolicy(bucket string) {
 	            "Sid": "statement1",
 	            "Effect": "Allow",
 	            "Principal": {
-	                "AWS": "arn:aws:iam::200869506108:user/rino"
+	                "AWS": "arn:aws:iam::xxxxxxxxxxxx:user/yourusername"
 	            },
 	            "Action": [
 	                "s3:GetBucketLocation",
 	                "s3:ListBucket"
 	            ],
-	            "Resource": "arn:aws:s3:::karina-cohive-backup-us-east-2"
+	            "Resource": "arn:aws:s3:::yourbucketname"
 	        },
 	        {
 	            "Sid": "statement2",
 	            "Effect": "Allow",
 	            "Principal": {
-	                "AWS": "arn:aws:iam::200869506108:user/rino"
+	                "AWS": "arn:aws:iam::xxxxxxxxxxxx:user/yourusername"
 	            },
 	            "Action": "s3:GetObject",
-	            "Resource": "arn:aws:s3:::karina-cohive-backup-us-east-2/*"
+	            "Resource": "arn:aws:s3:::yourbucketname/*"
 	        }
 	    ]
 	}`
 	input := &s3.PutBucketPolicyInput{
 		Bucket: aws.String(bucket),
-		// Policy: aws.String("{\"Version\": \"2012-10-17\", \"Statement\": [{ \"Sid\": \"id-1\",\"Effect\": \"Allow\",\"Principal\": {\"AWS\": \"arn:aws:iam::123456789012:root\"}, \"Action\": [ \"s3:PutObject\",\"s3:PutObjectAcl\"], \"Resource\": [\"arn:aws:s3:::acl3/*\" ] } ]}"),
 		Policy: aws.String(policy),
 	}
 
