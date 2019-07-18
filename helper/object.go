@@ -75,14 +75,14 @@ func PutObjectAcl(regionPtr, bucketPtr, keyPtr, ownerNamePtr, ownerIDPtr, grante
 
 func GetListObjectsWithContext(s3config map[string]interface{}) (result *s3.ListObjectsV2Output, e error) {
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(s3config["region"].(string)),
+		Region: aws.String(s3config[CONF_REGION].(string)),
 	}))
 	svc := s3.New(sess)
 
 	ctx := context.Background()
 
 	input := &s3.ListObjectsV2Input{
-		Bucket:  aws.String(s3config["bucket"].(string)),
+		Bucket:  aws.String(s3config[CONF_BUCKET].(string)),
 		MaxKeys: aws.Int64(2),
 	}
 
@@ -109,14 +109,14 @@ func RetentionCheck(dbconfig, s3config map[string]interface{}, retentionDay floa
 	tr := time.Now().Add(time.Hour * 24 * time.Duration(retentionDay) * -1)
 	tRetention := time.Date(tr.Year(), tr.Month(), tr.Day(), 0, 0, 0, 0, tr.Location())
 	archiveName := GenerateArchiveName(dbconfig, tRetention)
-	fPath := filepath.Join(dbconfig["destpath"].(string), archiveName)
+	fPath := filepath.Join(dbconfig[CONF_DEST_PATH].(string), archiveName)
 	os.RemoveAll(fPath)
 	DeleteObjectWithContext(s3config, archiveName)
 }
 
 func DeleteObjectWithContext(s3config map[string]interface{}, key string) {
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(s3config["region"].(string)),
+		Region: aws.String(s3config[CONF_REGION].(string)),
 	}))
 	svc := s3.New(sess)
 	ctx := context.Background()
@@ -147,7 +147,7 @@ func DeleteObjectWithContext(s3config map[string]interface{}, key string) {
 
 func DeleteObjectsWithContext(s3config map[string]interface{}, keys []string) {
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(s3config["region"].(string)),
+		Region: aws.String(s3config[CONF_REGION].(string)),
 	}))
 	svc := s3.New(sess)
 	ctx := context.Background()
@@ -210,7 +210,7 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 	// configuration and credential caching. See the session package for
 	// more information.
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(s3config["region"].(string)),
+		Region: aws.String(s3config[CONF_REGION].(string)),
 	}))
 
 	// Create a new instance of the service's client with a Session.
@@ -223,7 +223,7 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 	// more than the passed in timeout.
 	ctx := context.Background()
 	var cancelFn func()
-	timeout := time.Duration(s3config["timeout"].(float64))
+	timeout := time.Duration(s3config[CONF_TIMEOUT].(float64))
 	if timeout > 0 {
 		ctx, cancelFn = context.WithTimeout(ctx, timeout)
 		defer cancelFn()
@@ -260,17 +260,17 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 
 func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
 	sess := session.New(&aws.Config{
-		Region: aws.String(s3config["region"].(string)),
+		Region: aws.String(s3config[CONF_REGION].(string)),
 	})
 	uploader := s3manager.NewUploader(sess)
 
 	bucket := GetBucketPathFromConfig(s3config)
 	iter := new(SyncFolderIterator)
-	backupType := fileconfig["backuptype"].(string)
+	backupType := fileconfig[CONF_BACK_TYPE].(string)
 	tempDir := ""
 
 	switch backupType {
-	case "folder":
+	case CONF_FOLDER:
 		iter, tempDir = NewSyncFolderIter(fileconfig, bucket)
 	case "file":
 		iter = NewSyncWalkPath(fileconfig, bucket)
@@ -284,7 +284,7 @@ func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
 		log.Printf("unexpected error occurred during file walking: %v", err)
 	}
 
-	if backupType == "folder" {
+	if backupType == CONF_FOLDER {
 		time.Sleep(time.Second * 2)
 		os.RemoveAll(tempDir)
 	}
@@ -308,7 +308,7 @@ type fileInfo struct {
 // of the object to be uploaded. This will return a new SyncFolderIterator
 // with the data provided from walking the path.
 func NewSyncWalkPath(fileconfig map[string]interface{}, bucket string) *SyncFolderIterator {
-	fpath, initialrun := fileconfig["dirpath"].(string), fileconfig["initialrun"].(bool)
+	fpath, initialrun := fileconfig[CONF_DIR_PATH].(string), fileconfig[CONF_INIT_RUN].(bool)
 	metadata := []fileInfo{}
 	tNow := time.Now()
 	filepath.Walk(fpath, func(p string, info os.FileInfo, err error) error {
@@ -354,7 +354,7 @@ func ArchiveProcess(fpath, key, targetDir, ext string) (target, fname string, e 
 }
 
 func NewSyncFolderIter(fileconfig map[string]interface{}, bucket string) (iter *SyncFolderIterator, tempDir string) {
-	fpath, initialrun := fileconfig["dirpath"].(string), fileconfig["initialrun"].(bool)
+	fpath, initialrun := fileconfig[CONF_DIR_PATH].(string), fileconfig[CONF_INIT_RUN].(bool)
 	tempDir = filepath.Join(fpath, ArchiveTempDir)
 	os.MkdirAll(tempDir, 0777)
 	metadata := []fileInfo{}
@@ -363,7 +363,7 @@ func NewSyncFolderIter(fileconfig map[string]interface{}, bucket string) (iter *
 		if info.IsDir() && p != fpath && p != tempDir {
 			key := strings.TrimPrefix(strings.TrimPrefix(p, fpath), PathSeparator)
 			if initialrun || (!initialrun && DateEqual(tNow, info.ModTime())) {
-				arcDir, arcFile, e := ArchiveProcess(p, key, tempDir, fileconfig["archivemethod"].(string))
+				arcDir, arcFile, e := ArchiveProcess(p, key, tempDir, fileconfig[CONF_ARC_METHOD].(string))
 				if e != nil {
 					log.Println(e.Error())
 				}

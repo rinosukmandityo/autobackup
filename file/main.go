@@ -13,11 +13,11 @@ func main() {
 	flag.Parse()
 
 	configs := helper.ReadJsonFile(configLoc)
-	fileconfig := configs["file"].(map[string]interface{})
-	helper.PutObjectsToS3(fileconfig, configs["s3"].(map[string]interface{}))
-	if fileconfig["initialrun"].(bool) {
-		fileconfig["initialrun"] = false
-		configs["file"] = fileconfig
+	fileconfig := configs[helper.CONF_FOR_FILE].(map[string]interface{})
+	helper.PutObjectsToS3(fileconfig, configs[helper.CONF_FOR_S3].(map[string]interface{}))
+	if fileconfig[helper.CONF_INIT_RUN].(bool) {
+		fileconfig[helper.CONF_INIT_RUN] = false
+		configs[helper.CONF_FOR_FILE] = fileconfig
 		helper.WriteJsonFile(configs, configLoc)
 	}
 }

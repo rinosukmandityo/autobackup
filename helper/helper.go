@@ -22,7 +22,7 @@ func ToMapString(data interface{}) (res map[string]string) {
 
 func BackupDBToS3(dbconfig, s3config map[string]interface{}) {
 	archiveName, fPath := BackupDB(dbconfig)
-	retentionDay := dbconfig["retentionday"].(float64) + 1
+	retentionDay := dbconfig[CONF_RETENTION_DAY].(float64) + 1
 	if retentionDay > 0 {
 		RetentionCheck(dbconfig, s3config, retentionDay)
 	}
@@ -32,15 +32,15 @@ func BackupDBToS3(dbconfig, s3config map[string]interface{}) {
 func BackupDB(dbconfig map[string]interface{}) (archiveName, fPath string) {
 	tNow := time.Now()
 	archiveName = GenerateArchiveName(dbconfig, tNow)
-	fPath = filepath.Join(dbconfig["destpath"].(string), archiveName)
+	fPath = filepath.Join(dbconfig[CONF_DEST_PATH].(string), archiveName)
 	archiveCmd := "--archive=" + fPath
-	ExecCommand([]string{"/C", "mongodump", "--uri", dbconfig["uri"].(string), archiveCmd})
+	ExecCommand([]string{"/C", "mongodump", "--uri", dbconfig[CONF_URI].(string), archiveCmd})
 	return
 }
 
 func GetBucketPathFromConfig(s3config map[string]interface{}) (bucket string) {
-	bucket = strings.Trim(s3config["bucket"].(string), "/")
-	folder := strings.Trim(s3config["folder"].(string), "/")
+	bucket = strings.Trim(s3config[CONF_BUCKET].(string), "/")
+	folder := strings.Trim(s3config[CONF_FOLDER].(string), "/")
 	if folder != "" {
 		bucket = fmt.Sprintf("%s/%s/", bucket, folder)
 	}
@@ -48,9 +48,9 @@ func GetBucketPathFromConfig(s3config map[string]interface{}) (bucket string) {
 }
 
 func GetFolderPathFromConfig(s3config map[string]interface{}) string {
-	return strings.Trim(s3config["folder"].(string), "/") + "/"
+	return strings.Trim(s3config[CONF_FOLDER].(string), "/") + "/"
 }
 
 func GenerateArchiveName(dbconfig map[string]interface{}, t time.Time) string {
-	return fmt.Sprintf("%s_%s.archive", dbconfig["archivename"].(string), t.Format(dbconfig["archivesuffix_dateformat"].(string)))
+	return fmt.Sprintf("%s_%s.archive", dbconfig[CONF_ARC_NAME].(string), t.Format(dbconfig[CONF_DATE_FORMAT].(string)))
 }

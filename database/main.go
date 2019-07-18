@@ -14,6 +14,6 @@ func main() {
 
 	configs := helper.ReadJsonFile(configLoc)
 
-	helper.BackupDBToS3(configs["database"].(map[string]interface{}), configs["s3"].(map[string]interface{}))
+	helper.BackupDBToS3(configs[helper.CONF_FOR_DB].(map[string]interface{}), configs[helper.CONF_FOR_S3].(map[string]interface{}))
 
 }
