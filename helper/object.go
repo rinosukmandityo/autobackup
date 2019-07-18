@@ -255,7 +255,7 @@ func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
 		os.Exit(1)
 	}
 
-	log.Printf("successfully uploaded file to %s-%s\n", bucket, key)
+	log.Printf("successfully uploaded file to %s%s\n", bucket, key)
 }
 
 func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
