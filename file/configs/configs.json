@@ -1,6 +1,9 @@
 {
 	"file": {
-		"dirpath": "D:\\yourfilesdirectory"
+		"dirpath": "D:\\yourfilesdirectory",
+		"initialrun": true,
+		"backuptype": "file",
+		"archivemethod": "tar"
 	},
 	"s3": {
 		"region": "us-xxxx-2",

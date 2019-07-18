@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -16,26 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-)
-
-const (
-	ApEast1RegionID      = "ap-east-1"      // Asia Pacific (Hong Kong).
-	ApNortheast1RegionID = "ap-northeast-1" // Asia Pacific (Tokyo).
-	ApNortheast2RegionID = "ap-northeast-2" // Asia Pacific (Seoul).
-	ApSouth1RegionID     = "ap-south-1"     // Asia Pacific (Mumbai).
-	ApSoutheast1RegionID = "ap-southeast-1" // Asia Pacific (Singapore).
-	ApSoutheast2RegionID = "ap-southeast-2" // Asia Pacific (Sydney).
-	CaCentral1RegionID   = "ca-central-1"   // Canada (Central).
-	EuCentral1RegionID   = "eu-central-1"   // EU (Frankfurt).
-	EuNorth1RegionID     = "eu-north-1"     // EU (Stockholm).
-	EuWest1RegionID      = "eu-west-1"      // EU (Ireland).
-	EuWest2RegionID      = "eu-west-2"      // EU (London).
-	EuWest3RegionID      = "eu-west-3"      // EU (Paris).
-	SaEast1RegionID      = "sa-east-1"      // South America (Sao Paulo).
-	UsEast1RegionID      = "us-east-1"      // US East (N. Virginia).
-	UsEast2RegionID      = "us-east-2"      // US East (Ohio).
-	UsWest1RegionID      = "us-west-1"      // US West (N. California).
-	UsWest2RegionID      = "us-west-2"      // US West (Oregon).
 )
 
 func PutObjectAcl(regionPtr, bucketPtr, keyPtr, ownerNamePtr, ownerIDPtr, granteeTypePtr, uriPtr, emailPtr, userPtr, displayNamePtr *string) {
@@ -92,18 +73,20 @@ func PutObjectAcl(regionPtr, bucketPtr, keyPtr, ownerNamePtr, ownerIDPtr, grante
 	}
 }
 
-func GetListObjects(s3config map[string]interface{}) {
+func GetListObjectsWithContext(s3config map[string]interface{}) (result *s3.ListObjectsV2Output, e error) {
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(s3config["region"].(string)),
 	}))
 	svc := s3.New(sess)
+
+	ctx := context.Background()
 
 	input := &s3.ListObjectsV2Input{
 		Bucket:  aws.String(s3config["bucket"].(string)),
 		MaxKeys: aws.Int64(2),
 	}
 
-	result, e := svc.ListObjectsV2(input)
+	result, e = svc.ListObjectsV2WithContext(ctx, input)
 	if e != nil {
 		if aerr, ok := e.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -119,9 +102,105 @@ func GetListObjects(s3config map[string]interface{}) {
 		}
 		return
 	}
-	for _, obj := range result.Contents {
-		log.Println(*obj.Key, obj.LastModified)
+	return
+}
+
+func RetentionCheck(dbconfig, s3config map[string]interface{}, retentionDay float64) {
+	tr := time.Now().Add(time.Hour * 24 * time.Duration(retentionDay) * -1)
+	tRetention := time.Date(tr.Year(), tr.Month(), tr.Day(), 0, 0, 0, 0, tr.Location())
+	archiveName := GenerateArchiveName(dbconfig, tRetention)
+	fPath := filepath.Join(dbconfig["destpath"].(string), archiveName)
+	os.RemoveAll(fPath)
+	DeleteObjectWithContext(s3config, archiveName)
+}
+
+func DeleteObjectWithContext(s3config map[string]interface{}, key string) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(s3config["region"].(string)),
+	}))
+	svc := s3.New(sess)
+	ctx := context.Background()
+
+	bucket := GetBucketPathFromConfig(s3config)
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
 	}
+
+	_, err := svc.DeleteObjectWithContext(ctx, input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				log.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			log.Println(err.Error())
+		}
+		return
+	}
+
+	log.Println(fmt.Sprintf("Delete object %s success", key))
+}
+
+func DeleteObjectsWithContext(s3config map[string]interface{}, keys []string) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(s3config["region"].(string)),
+	}))
+	svc := s3.New(sess)
+	ctx := context.Background()
+
+	bucket := GetBucketPathFromConfig(s3config)
+
+	objects := []*s3.ObjectIdentifier{}
+	for _, k := range keys {
+		objects = append(objects, &s3.ObjectIdentifier{Key: aws.String(k)})
+	}
+	input := &s3.DeleteObjectsInput{
+		Bucket: aws.String(bucket),
+		Delete: &s3.Delete{
+			Objects: objects,
+			Quiet:   aws.Bool(false),
+		},
+	}
+
+	_, err := svc.DeleteObjectsWithContext(ctx, input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				log.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			log.Println(err.Error())
+		}
+		return
+	}
+
+	log.Println(fmt.Sprintf("Delete object %s success", strings.Join(keys, ", ")))
+}
+
+func RetentionCheckByResult(result *s3.ListObjectsV2Output) {
+	tr := time.Now().Add(time.Hour * 24 * 7 * -1)
+	tRetention := time.Date(tr.Year(), tr.Month(), tr.Day(), 0, 0, 0, 0, tr.Location())
+	GetDeletedObjects(result, tRetention)
+}
+
+func GetDeletedObjects(result *s3.ListObjectsV2Output, tRetention time.Time) (res []string) {
+	res = []string{}
+	for _, obj := range result.Contents {
+		key := *obj.Key
+		if !strings.HasSuffix(key, "/") {
+			if obj.LastModified.Before(tRetention) {
+				res = append(res, key)
+			}
+		}
+	}
+	return
 }
 
 func PutObjectWithContext(s3config map[string]interface{}, key, fPath string) {
@@ -186,7 +265,17 @@ func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
 	uploader := s3manager.NewUploader(sess)
 
 	bucket := GetBucketPathFromConfig(s3config)
-	iter := NewSyncFolderIter(fileconfig["dirpath"].(string), bucket)
+	iter := new(SyncFolderIterator)
+	backupType := fileconfig["backuptype"].(string)
+	tempDir := ""
+
+	switch backupType {
+	case "folder":
+		iter, tempDir = NewSyncFolderIter(fileconfig, bucket)
+	case "file":
+		iter = NewSyncWalkPath(fileconfig, bucket)
+	}
+
 	if err := uploader.UploadWithIterator(aws.BackgroundContext(), iter); err != nil {
 		log.Printf("unexpected error has occurred: %v", err)
 	}
@@ -195,6 +284,10 @@ func PutObjectsToS3(fileconfig, s3config map[string]interface{}) {
 		log.Printf("unexpected error occurred during file walking: %v", err)
 	}
 
+	if backupType == "folder" {
+		time.Sleep(time.Second * 2)
+		os.RemoveAll(tempDir)
+	}
 	log.Println("Backup File to S3 success")
 }
 
@@ -211,7 +304,86 @@ type fileInfo struct {
 	fullpath string
 }
 
-func NewSyncFolderIter(fpath, bucket string) *SyncFolderIterator {
+// NewSyncWalkPath will walk the path, and store the key and full path
+// of the object to be uploaded. This will return a new SyncFolderIterator
+// with the data provided from walking the path.
+func NewSyncWalkPath(fileconfig map[string]interface{}, bucket string) *SyncFolderIterator {
+	fpath, initialrun := fileconfig["dirpath"].(string), fileconfig["initialrun"].(bool)
+	metadata := []fileInfo{}
+	tNow := time.Now()
+	filepath.Walk(fpath, func(p string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			key := strings.TrimPrefix(strings.TrimPrefix(p, fpath), PathSeparator)
+			if initialrun || (!initialrun && DateEqual(tNow, info.ModTime())) {
+				metadata = append(metadata, fileInfo{key, p})
+			} else {
+				metadata = append(metadata, fileInfo{key, p})
+			}
+		}
+
+		return nil
+	})
+
+	return &SyncFolderIterator{
+		bucket,
+		metadata,
+		nil,
+	}
+}
+
+func ArchiveProcess(fpath, key, targetDir, ext string) (target, fname string, e error) {
+	target = fmt.Sprintf("%s.%s", filepath.Join(targetDir, key), strings.TrimLeft(ext, "."))
+	fname = fmt.Sprintf("%s.%s", key, strings.TrimLeft(ext, "."))
+	switch ext {
+	case "zip":
+		e = ZipCompress(fpath, target)
+	case "tar":
+		e = TarCompress(fpath, target)
+	case "gz", "tar.gz":
+		tarTarget := fmt.Sprintf("%s.%s", filepath.Join(targetDir, key), "tar")
+		e = TarCompress(fpath, tarTarget)
+		if ext == "gz" {
+			target = fmt.Sprintf("%s.%s", filepath.Join(targetDir, key), "tar.gz")
+		}
+		e = GzCompress(tarTarget, target)
+	}
+	if e != nil {
+		return
+	}
+	return
+}
+
+func NewSyncFolderIter(fileconfig map[string]interface{}, bucket string) (iter *SyncFolderIterator, tempDir string) {
+	fpath, initialrun := fileconfig["dirpath"].(string), fileconfig["initialrun"].(bool)
+	tempDir = filepath.Join(fpath, ArchiveTempDir)
+	os.MkdirAll(tempDir, 0777)
+	metadata := []fileInfo{}
+	tNow := time.Now()
+	filepath.Walk(fpath, func(p string, info os.FileInfo, err error) error {
+		if info.IsDir() && p != fpath && p != tempDir {
+			key := strings.TrimPrefix(strings.TrimPrefix(p, fpath), PathSeparator)
+			if initialrun || (!initialrun && DateEqual(tNow, info.ModTime())) {
+				arcDir, arcFile, e := ArchiveProcess(p, key, tempDir, fileconfig["archivemethod"].(string))
+				if e != nil {
+					log.Println(e.Error())
+				}
+				metadata = append(metadata, fileInfo{arcFile, arcDir})
+			}
+		}
+
+		return nil
+	})
+	time.Sleep(time.Second * 3) // just estimated time to wait till archiving finished
+	iter = &SyncFolderIterator{
+		bucket,
+		metadata,
+		nil,
+	}
+
+	return
+}
+
+func NewSyncFilesIter(fpath, bucket string) *SyncFolderIterator {
 	metadata := []fileInfo{}
 	tNow := time.Now()
 	files, e := ioutil.ReadDir(fpath)
@@ -270,26 +442,5 @@ func (iter *SyncFolderIterator) UploadObject() s3manager.BatchUploadObject {
 
 	return s3manager.BatchUploadObject{
 		Object: &input,
-	}
-}
-
-// NewSyncWalkPath will walk the path, and store the key and full path
-// of the object to be uploaded. This will return a new SyncFolderIterator
-// with the data provided from walking the path.
-func NewSyncWalkPath(path, bucket string) *SyncFolderIterator {
-	metadata := []fileInfo{}
-	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			key := strings.TrimPrefix(p, path)
-			metadata = append(metadata, fileInfo{key, p})
-		}
-
-		return nil
-	})
-
-	return &SyncFolderIterator{
-		bucket,
-		metadata,
-		nil,
 	}
 }
