@@ -5,8 +5,8 @@ How to use
 ---
 #### Backup Database
 It will dump your MongoDB database with archive and copy it into your local folder and S3 Bucket  
-Here is step by step:
-1. Change config file inside configs/configs.json with appropriate information about your database and S3 Bucket
+It's located in `database` directory and following is brief description about the config file:
+1. Change config file inside `configs/configs.json` with appropriate information about your database and S3 Bucket
 2.	`uri` is connection string used to connect into your database
 3.	`archivename` is your archive name that contains all dump files from your database
 4.	`archivesuffix_dateformat` used to add suffix into archive name. It can be used as a flag to determine your dump time. This format 20060102 is similar to yyyyMMdd format and 150405 is similar to HHmmss
@@ -23,8 +23,8 @@ If this apps run in 15 July 2019 and `retentionday: 7`, it will keep object betw
 
 #### Backup Files
 It will copy your files into S3 Bucket  
-Here is step by step:
-1. Change config file inside configs/configs.json with appropriate information about your files directory location and S3 Bucket
+It's located in `file` directory and following is brief description about the config file:
+1. Change config file inside `configs/configs.json` with appropriate information about your files directory location and S3 Bucket
 2. `dirpath` is your upload directory location
 3.	When you set `initialrun: true`, it will copy all files inside particular directory, after that it will set `initialrun: false` automatically
 4.	When you set `initialrun: false`, it will copy files in the same day when this apps run
