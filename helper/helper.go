@@ -22,9 +22,9 @@ func ToMapString(data interface{}) (res map[string]string) {
 
 func BackupDBToS3(dbconfig, s3config map[string]interface{}) {
 	archiveName, fPath := BackupDB(dbconfig)
-	retentionDay := dbconfig[CONF_RETENTION_DAY].(float64) + 1
+	retentionDay := dbconfig[CONF_RETENTION_DAY].(float64)
 	if retentionDay > 0 {
-		RetentionCheck(dbconfig, s3config, retentionDay)
+		RetentionCheck(dbconfig, s3config, retentionDay+1)
 	}
 	PutObjectWithContext(s3config, archiveName, fPath)
 }
