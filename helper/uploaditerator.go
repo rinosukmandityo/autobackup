@@ -2,7 +2,6 @@ package helper
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"mime"
 	"os"
@@ -37,8 +36,6 @@ func NewSyncWalkPath(fileconfig map[string]interface{}, bucket string) *SyncFold
 		if !info.IsDir() {
 			key := strings.TrimPrefix(strings.TrimPrefix(p, fpath), PathSeparator)
 			if initialrun || (!initialrun && DateEqual(tNow, info.ModTime())) {
-				metadata = append(metadata, fileInfo{key, p})
-			} else {
 				metadata = append(metadata, fileInfo{key, p})
 			}
 		}
@@ -103,28 +100,6 @@ func NewSyncFolderIter(fileconfig map[string]interface{}, bucket string) (iter *
 	}
 
 	return
-}
-
-func NewSyncFilesIter(fpath, bucket string) *SyncFolderIterator {
-	metadata := []fileInfo{}
-	tNow := time.Now()
-	files, e := ioutil.ReadDir(fpath)
-	if e != nil {
-		log.Println(e.Error())
-		return nil
-	}
-
-	for _, f := range files {
-		if DateEqual(tNow, f.ModTime()) {
-			metadata = append(metadata, fileInfo{f.Name(), filepath.Join(fpath, f.Name())})
-		}
-	}
-
-	return &SyncFolderIterator{
-		bucket,
-		metadata,
-		nil,
-	}
 }
 
 // Next will determine whether or not there is any remaining files to
