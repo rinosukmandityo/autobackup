@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"path/filepath"
 
 	"github.com/rinosukmandityo/autobackup/helper"
 )
@@ -9,7 +10,7 @@ import (
 func main() {
 
 	var configLoc string
-	flag.StringVar(&configLoc, "config", "configs/configs.json", "config file location")
+	flag.StringVar(&configLoc, "config", filepath.Join(helper.WD, "configs", "configs.json"), "config file location")
 	flag.Parse()
 
 	configs := helper.ReadJsonFile(configLoc)

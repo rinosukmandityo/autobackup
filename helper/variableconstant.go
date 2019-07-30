@@ -7,6 +7,7 @@ import (
 var (
 	PathSeparator  string = string(os.PathSeparator)
 	ArchiveTempDir        = "archivetemp"
+	WD, _                 = os.Getwd()
 )
 
 const (
