@@ -20,6 +20,7 @@ func ToMapString(data interface{}) (res map[string]string) {
 	return
 }
 
+// To store your database into S3
 func BackupDBToS3(dbconfig, s3config map[string]interface{}) {
 	archiveName, fPath := BackupDB(dbconfig)
 	retentionDay := dbconfig[CONF_RETENTION_DAY].(float64)
